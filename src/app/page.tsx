@@ -35,6 +35,7 @@ export default function GolfScoringApp() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [currentHole, setCurrentHole] = useState<number>(1);
   const [codeCopied, setCodeCopied] = useState<boolean>(false);
+  const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
 
   // Generate random game code
   const generateGameCode = (): string => {
@@ -151,6 +152,7 @@ export default function GolfScoringApp() {
 
       setCurrentGame(gameData);
       setPlayers([playerData]);
+      setCurrentPlayer(playerData);
       setGameCode(newGameCode);
       setCurrentView('lobby');
       
@@ -182,13 +184,15 @@ export default function GolfScoringApp() {
       }
 
       // Add player to game
-      const { error: playerError } = await supabase
+      const { data: newPlayerData, error: playerError } = await supabase
         .from('players')
         .insert({
           game_id: gameData.id,
           name: playerName.trim(),
           is_host: false
-        });
+        })
+        .select()
+        .single();
 
       if (playerError) throw playerError;
 
@@ -202,6 +206,7 @@ export default function GolfScoringApp() {
 
       setCurrentGame(gameData);
       setPlayers(allPlayers || []);
+      setCurrentPlayer(newPlayerData);
       setGameCode(gameData.code);
       setCurrentView('lobby');
       
@@ -298,6 +303,7 @@ export default function GolfScoringApp() {
     setJoinCode('');
     setPlayerName('');
     setCurrentHole(1);
+    setCurrentPlayer(null);
   };
 
   // Home screen
@@ -486,28 +492,55 @@ export default function GolfScoringApp() {
 
             <div className="space-y-4">
               {players.map(player => (
-                <div key={player.id} className="bg-white rounded-lg shadow p-4">
+                <div key={player.id} className={`bg-white rounded-lg shadow p-4 ${
+                  player.id === currentPlayer?.id ? 'ring-2 ring-green-500' : ''
+                }`}>
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <h3 className="font-semibold text-lg">{player.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-lg">{player.name}</h3>
+                        {player.id === currentPlayer?.id && (
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                            You
+                          </span>
+                        )}
+                      </div>
                       <p className="text-gray-600">Total: {getPlayerTotal(player.id)}</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => updateScore(player.id, currentHole, (scores[player.id]?.[currentHole - 1] || 0) - 1)}
-                        className="w-10 h-10 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
-                      >
-                        <Minus size={20} />
-                      </button>
-                      <span className="text-2xl font-bold w-8 text-center">
-                        {scores[player.id]?.[currentHole - 1] || 0}
-                      </span>
-                      <button
-                        onClick={() => updateScore(player.id, currentHole, (scores[player.id]?.[currentHole - 1] || 0) + 1)}
-                        className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600"
-                      >
-                        <Plus size={20} />
-                      </button>
+                      {player.id === currentPlayer?.id ? (
+                        // Editable controls for current player
+                        <>
+                          <button
+                            onClick={() => updateScore(player.id, currentHole, (scores[player.id]?.[currentHole - 1] || 0) - 1)}
+                            className="w-10 h-10 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                          >
+                            <Minus size={20} />
+                          </button>
+                          <span className="text-2xl font-bold w-8 text-center">
+                            {scores[player.id]?.[currentHole - 1] || 0}
+                          </span>
+                          <button
+                            onClick={() => updateScore(player.id, currentHole, (scores[player.id]?.[currentHole - 1] || 0) + 1)}
+                            className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600"
+                          >
+                            <Plus size={20} />
+                          </button>
+                        </>
+                      ) : (
+                        // Read-only display for other players
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                            <Minus size={20} className="text-gray-400" />
+                          </div>
+                          <span className="text-2xl font-bold w-8 text-center text-gray-600">
+                            {scores[player.id]?.[currentHole - 1] || 0}
+                          </span>
+                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                            <Plus size={20} className="text-gray-400" />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
