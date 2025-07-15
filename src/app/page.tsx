@@ -23,42 +23,42 @@ export default function GolfScoringApp() {
   };
 
   // Set up real-time subscriptions
-  useEffect(() => {
-    if (!currentGame) return;
+useEffect(() => {
+  if (!currentGame?.id) return;
 
-    // Subscribe to player changes
-    const playersSubscription = supabase
-      .channel('players-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'players',
-        filter: `game_id=eq.${currentGame.id}`
-      }, (payload) => {
-        console.log('Players changed:', payload);
-        fetchPlayers();
-      })
-      .subscribe();
+  // Subscribe to player changes
+  const playersSubscription = supabase
+    .channel('players-changes')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'players',
+      filter: `game_id=eq.${currentGame.id}`
+    }, (payload) => {
+      console.log('Players changed:', payload);
+      fetchPlayers();
+    })
+    .subscribe();
 
-    // Subscribe to score changes
-    const scoresSubscription = supabase
-      .channel('scores-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'scores',
-        filter: `game_id=eq.${currentGame.id}`
-      }, (payload) => {
-        console.log('Scores changed:', payload);
-        fetchScores();
-      })
-      .subscribe();
+  // Subscribe to score changes
+  const scoresSubscription = supabase
+    .channel('scores-changes')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'scores',
+      filter: `game_id=eq.${currentGame.id}`
+    }, (payload) => {
+      console.log('Scores changed:', payload);
+      fetchScores();
+    })
+    .subscribe();
 
-    return () => {
-      playersSubscription.unsubscribe();
-      scoresSubscription.unsubscribe();
-    };
-  }, [currentGame]);
+  return () => {
+    playersSubscription.unsubscribe();
+    scoresSubscription.unsubscribe();
+  };
+}, [currentGame?.id]); // Add dependency
 
   // Fetch players for current game
   const fetchPlayers = async () => {
