@@ -433,7 +433,7 @@ export default function GolfScoringApp() {
       <div className="min-h-screen bg-green-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-green-800">Loading...</p>
+          <p className="text-green-900">Loading...</p>
         </div>
       </div>
     );
@@ -473,7 +473,7 @@ export default function GolfScoringApp() {
 
               <div className="flex items-center gap-4">
                 <div className="flex-1 border-t border-gray-300"></div>
-                <span className="text-gray-500">or</span>
+                <span className="text-gray-600">or</span>
                 <div className="flex-1 border-t border-gray-300"></div>
               </div>
 
@@ -511,7 +511,7 @@ export default function GolfScoringApp() {
             </h1>
             
             <div className="mb-6 text-center">
-              <p className="text-gray-600 mb-2">Share this code with your friends:</p>
+              <p className="text-gray-800 mb-2">Share this code with your friends:</p>
               <div className="flex items-center justify-center gap-2">
                 <div className="bg-gray-100 px-4 py-2 rounded-lg font-mono text-2xl font-bold">
                   {gameCode}
@@ -557,7 +557,7 @@ export default function GolfScoringApp() {
             </div>
 
             <div className="mt-4 text-center">
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-700">
                 Your game session is saved. You can safely refresh or close this page.
               </p>
             </div>
@@ -651,7 +651,7 @@ export default function GolfScoringApp() {
                           </span>
                         )}
                       </div>
-                      <p className="text-gray-600">Total: {getPlayerTotal(player.id)}</p>
+                      <p className="text-gray-800">Total: {getPlayerTotal(player.id)}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       {player.id === currentPlayer?.id ? (
@@ -676,14 +676,14 @@ export default function GolfScoringApp() {
                       ) : (
                         // Read-only display for other players
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                            <Minus size={20} className="text-gray-400" />
+                          <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                            <Minus size={20} className="text-gray-500" />
                           </div>
-                          <span className="text-2xl font-bold w-8 text-center text-gray-600">
+                          <span className="text-2xl font-bold w-8 text-center text-gray-700">
                             {scores[player.id]?.[currentHole - 1] || 0}
                           </span>
-                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                            <Plus size={20} className="text-gray-400" />
+                          <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                            <Plus size={20} className="text-gray-500" />
                           </div>
                         </div>
                       )}
@@ -713,14 +713,14 @@ export default function GolfScoringApp() {
                       </div>
                       <div>
                         <h3 className="font-semibold text-lg">{player.name}</h3>
-                        <p className="text-gray-600">
+                        <p className="text-gray-800">
                           {player.currentHole > currentGame!.holes ? 'Finished' : `On hole ${player.currentHole}`}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-2xl font-bold">{player.total || '-'}</div>
-                      <div className="text-sm text-gray-600">Total Score</div>
+                      <div className="text-sm text-gray-800">Total Score</div>
                     </div>
                   </div>
                 </div>
