@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { Users, Trophy, Plus, Minus, RotateCcw, Copy, Check, Wifi, WifiOff } from 'lucide-react';
+import { Users, Trophy, Plus, Minus, RotateCcw, Copy, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 // Type definitions
@@ -42,121 +42,77 @@ export default function GolfScoringApp() {
   };
 
   // Set up real-time subscriptions
-useEffect(() => {
-  if (!currentGame?.id) return;
+  useEffect(() => {
+    if (!currentGame?.id) return;
 
-  const fetchPlayersCallback = async () => {
-    const { data, error } = await supabase
-      .from('players')
-      .select('*')
-      .eq('game_id', currentGame.id);
+    const fetchPlayersCallback = async () => {
+      const { data, error } = await supabase
+        .from('players')
+        .select('*')
+        .eq('game_id', currentGame.id);
 
-    if (error) {
-      console.error('Error fetching players:', error);
-    } else {
-      setPlayers(data || []);
-    }
-  };
+      if (error) {
+        console.error('Error fetching players:', error);
+      } else {
+        setPlayers(data || []);
+      }
+    };
 
-  const fetchScoresCallback = async () => {
-    const { data, error } = await supabase
-      .from('scores')
-      .select('*')
-      .eq('game_id', currentGame.id);
+    const fetchScoresCallback = async () => {
+      const { data, error } = await supabase
+        .from('scores')
+        .select('*')
+        .eq('game_id', currentGame.id);
 
-    if (error) {
-      console.error('Error fetching scores:', error);
-    } else {
-      const scoresMap: Scores = {};
-      players.forEach(player => {
-        scoresMap[player.id] = Array(currentGame.holes).fill(0);
-      });
+      if (error) {
+        console.error('Error fetching scores:', error);
+      } else {
+        const scoresMap: Scores = {};
+        players.forEach(player => {
+          scoresMap[player.id] = Array(currentGame.holes).fill(0);
+        });
 
-      data?.forEach(score => {
-        if (scoresMap[score.player_id]) {
-          scoresMap[score.player_id][score.hole - 1] = score.strokes;
-        }
-      });
+        data?.forEach(score => {
+          if (scoresMap[score.player_id]) {
+            scoresMap[score.player_id][score.hole - 1] = score.strokes;
+          }
+        });
 
-      setScores(scoresMap);
-    }
-  };
+        setScores(scoresMap);
+      }
+    };
 
-  // Subscribe to player changes
-  const playersSubscription = supabase
-    .channel('players-changes')
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'players',
-      filter: `game_id=eq.${currentGame.id}`
-    }, () => {
-      fetchPlayersCallback();
-    })
-    .subscribe();
+    // Subscribe to player changes
+    const playersSubscription = supabase
+      .channel('players-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'players',
+        filter: `game_id=eq.${currentGame.id}`
+      }, () => {
+        fetchPlayersCallback();
+      })
+      .subscribe();
 
-  // Subscribe to score changes
-  const scoresSubscription = supabase
-    .channel('scores-changes')
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'scores',
-      filter: `game_id=eq.${currentGame.id}`
-    }, () => {
-      fetchScoresCallback();
-    })
-    .subscribe();
+    // Subscribe to score changes
+    const scoresSubscription = supabase
+      .channel('scores-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'scores',
+        filter: `game_id=eq.${currentGame.id}`
+      }, () => {
+        fetchScoresCallback();
+      })
+      .subscribe();
 
-  return () => {
-    playersSubscription.unsubscribe();
-    scoresSubscription.unsubscribe();
-  };
-}, [currentGame?.id, currentGame?.holes, players]);
-
-  // Fetch players for current game
-  const fetchPlayers = async (): Promise<void> => {
-    if (!currentGame) return;
-
-    const { data, error } = await supabase
-      .from('players')
-      .select('*')
-      .eq('game_id', currentGame.id);
-
-    if (error) {
-      console.error('Error fetching players:', error);
-    } else {
-      setPlayers(data || []);
-    }
-  };
-
-  // Fetch scores for current game
-  const fetchScores = async (): Promise<void> => {
-    if (!currentGame) return;
-
-    const { data, error } = await supabase
-      .from('scores')
-      .select('*')
-      .eq('game_id', currentGame.id);
-
-    if (error) {
-      console.error('Error fetching scores:', error);
-    } else {
-      // Convert scores to the format we need
-      const scoresMap: Scores = {};
-      players.forEach(player => {
-        scoresMap[player.id] = Array(currentGame.holes).fill(0);
-      });
-
-      data?.forEach(score => {
-        if (scoresMap[score.player_id]) {
-          scoresMap[score.player_id][score.hole - 1] = score.strokes;
-        }
-      });
-
-      setScores(scoresMap);
-    }
-  };
+    return () => {
+      playersSubscription.unsubscribe();
+      scoresSubscription.unsubscribe();
+    };
+  }, [currentGame?.id, currentGame?.holes, players]);
 
   // Create new game
   const createGame = async (): Promise<void> => {
@@ -234,7 +190,7 @@ useEffect(() => {
           is_host: false
         });
 
-if (playerError) throw playerError;
+      if (playerError) throw playerError;
 
       // Get all players
       const { data: allPlayers, error: playersError } = await supabase
@@ -316,11 +272,13 @@ if (playerError) throw playerError;
 
   // Get leaderboard
   const getLeaderboard = () => {
+    if (!currentGame) return [];
+    
     return players
       .map(player => ({
         ...player,
         total: getPlayerTotal(player.id),
-        currentHole: scores[player.id]?.findIndex(score => score === 0) + 1 || currentGame?.holes + 1
+        currentHole: scores[player.id]?.findIndex(score => score === 0) + 1 || currentGame.holes + 1
       }))
       .sort((a, b) => {
         if (a.total === 0 && b.total === 0) return 0;
@@ -471,7 +429,9 @@ if (playerError) throw playerError;
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <div>
             <h1 className="text-xl font-bold">Golf Scorecard</h1>
-            
+            <div className="flex items-center gap-2 text-sm">
+              <span>Game: {gameCode}</span>
+            </div>
           </div>
           <button
             onClick={resetToHome}
