@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { Users, Trophy, Plus, Minus, RotateCcw, Copy, Check } from 'lucide-react';
+import { Users, Trophy, Plus, Minus, RotateCcw, Copy, Check, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 // Type definitions
@@ -145,74 +145,80 @@ export default function GolfScoringApp() {
   useEffect(() => {
     if (!currentGame?.id) return;
 
-    const fetchPlayersCallback = async () => {
-      const { data, error } = await supabase
-        .from('players')
-        .select('*')
-        .eq('game_id', currentGame.id);
-
-      if (error) {
-        console.error('Error fetching players:', error);
-      } else {
-        setPlayers(data || []);
-      }
-    };
-
-    const fetchScoresCallback = async () => {
-      const { data, error } = await supabase
-        .from('scores')
-        .select('*')
-        .eq('game_id', currentGame.id);
-
-      if (error) {
-        console.error('Error fetching scores:', error);
-      } else {
-        const scoresMap: Scores = {};
-        players.forEach(player => {
-          scoresMap[player.id] = Array(currentGame.holes).fill(0);
-        });
-
-        data?.forEach(score => {
-          if (scoresMap[score.player_id]) {
-            scoresMap[score.player_id][score.hole - 1] = score.strokes;
-          }
-        });
-
-        setScores(scoresMap);
-      }
-    };
+    console.log('Setting up real-time subscriptions for game:', currentGame.id);
 
     // Subscribe to player changes
     const playersSubscription = supabase
-      .channel('players-changes')
+      .channel(`players-${currentGame.id}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'players',
         filter: `game_id=eq.${currentGame.id}`
-      }, () => {
-        fetchPlayersCallback();
+      }, (payload) => {
+        console.log('Players changed:', payload);
+        fetchPlayersAndScores(currentGame.id);
       })
       .subscribe();
 
     // Subscribe to score changes
     const scoresSubscription = supabase
-      .channel('scores-changes')
+      .channel(`scores-${currentGame.id}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'scores',
         filter: `game_id=eq.${currentGame.id}`
-      }, () => {
-        fetchScoresCallback();
+      }, (payload) => {
+        console.log('Scores changed:', payload);
+        fetchPlayersAndScores(currentGame.id);
       })
       .subscribe();
 
     return () => {
+      console.log('Cleaning up subscriptions');
       playersSubscription.unsubscribe();
       scoresSubscription.unsubscribe();
     };
-  }, [currentGame?.id, currentGame?.holes, players]);
+  }, [currentGame?.id]);
+
+  // Separate useEffect to fetch initial data when players change
+  useEffect(() => {
+    if (currentGame?.id && players.length > 0) {
+      fetchScoresData();
+    }
+  }, [currentGame?.id, players.length]);
+
+  // Fetch just the scores (separate from players)
+  const fetchScoresData = async () => {
+    if (!currentGame?.id) return;
+
+    try {
+      const { data: scoresData, error: scoresError } = await supabase
+        .from('scores')
+        .select('*')
+        .eq('game_id', currentGame.id);
+
+      if (scoresError) throw scoresError;
+
+      // Convert scores to the format we need
+      const scoresMap: Scores = {};
+      players.forEach(player => {
+        scoresMap[player.id] = Array(currentGame.holes).fill(0);
+      });
+
+      (scoresData || []).forEach(score => {
+        if (scoresMap[score.player_id]) {
+          scoresMap[score.player_id][score.hole - 1] = score.strokes;
+        }
+      });
+
+      console.log('Updated scores:', scoresMap);
+      setScores(scoresMap);
+    } catch (error) {
+      console.error('Error fetching scores:', error);
+    }
+  };
 
   // Create new game
   const createGame = async (): Promise<void> => {
@@ -338,17 +344,21 @@ export default function GolfScoringApp() {
   const updateScore = async (playerId: string, hole: number, newScore: number): Promise<void> => {
     const finalScore = Math.max(0, newScore);
     
+    console.log(`Updating score for player ${playerId}, hole ${hole}, score ${finalScore}`);
+    
     try {
       // Update local state immediately for responsiveness
       setScores(prev => ({
         ...prev,
-        [playerId]: prev[playerId].map((score, index) => 
+        [playerId]: prev[playerId]?.map((score, index) => 
+          index === hole - 1 ? finalScore : score
+        ) || Array(currentGame!.holes).fill(0).map((score, index) => 
           index === hole - 1 ? finalScore : score
         )
       }));
 
       // Update in Supabase
-      await supabase
+      const { error } = await supabase
         .from('scores')
         .upsert({
           game_id: currentGame!.id,
@@ -357,8 +367,17 @@ export default function GolfScoringApp() {
           strokes: finalScore
         });
 
+      if (error) {
+        console.error('Supabase upsert error:', error);
+        throw error;
+      }
+
+      console.log('Score updated successfully in Supabase');
+
     } catch (error) {
       console.error('Error updating score:', error);
+      // Revert local state on error
+      fetchScoresData();
     }
   };
 
@@ -574,6 +593,13 @@ export default function GolfScoringApp() {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Hole {currentHole}</h2>
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => fetchScoresData()}
+                    className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-1"
+                    title="Refresh scores"
+                  >
+                    <RefreshCw size={16} />
+                  </button>
                   <button
                     onClick={() => setCurrentHole(Math.max(1, currentHole - 1))}
                     disabled={currentHole === 1}
