@@ -36,6 +36,105 @@ export default function GolfScoringApp() {
   const [currentHole, setCurrentHole] = useState<number>(1);
   const [codeCopied, setCodeCopied] = useState<boolean>(false);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
+
+  // Load saved game state on app start
+  useEffect(() => {
+    const loadSavedState = () => {
+      try {
+        const savedGame = localStorage.getItem('golf-current-game');
+        const savedPlayer = localStorage.getItem('golf-current-player');
+        const savedView = localStorage.getItem('golf-current-view');
+        const savedHole = localStorage.getItem('golf-current-hole');
+
+        if (savedGame && savedPlayer) {
+          const game = JSON.parse(savedGame);
+          const player = JSON.parse(savedPlayer);
+          
+          setCurrentGame(game);
+          setCurrentPlayer(player);
+          setGameCode(game.code);
+          
+          if (savedView) {
+            setCurrentView(savedView as 'home' | 'lobby' | 'scoring' | 'leaderboard');
+          }
+          
+          if (savedHole) {
+            setCurrentHole(parseInt(savedHole));
+          }
+
+          // Fetch current players and scores
+          fetchPlayersAndScores(game.id);
+        }
+      } catch (error) {
+        console.error('Error loading saved state:', error);
+        clearSavedState();
+      }
+      setIsInitialized(true);
+    };
+
+    loadSavedState();
+  }, []);
+
+  // Save game state whenever it changes
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    if (currentGame && currentPlayer) {
+      localStorage.setItem('golf-current-game', JSON.stringify(currentGame));
+      localStorage.setItem('golf-current-player', JSON.stringify(currentPlayer));
+      localStorage.setItem('golf-current-view', currentView);
+      localStorage.setItem('golf-current-hole', currentHole.toString());
+    } else {
+      clearSavedState();
+    }
+  }, [currentGame, currentPlayer, currentView, currentHole, isInitialized]);
+
+  // Clear saved state
+  const clearSavedState = () => {
+    localStorage.removeItem('golf-current-game');
+    localStorage.removeItem('golf-current-player');
+    localStorage.removeItem('golf-current-view');
+    localStorage.removeItem('golf-current-hole');
+  };
+
+  // Fetch players and scores for a game
+  const fetchPlayersAndScores = async (gameId: string) => {
+    try {
+      // Fetch players
+      const { data: playersData, error: playersError } = await supabase
+        .from('players')
+        .select('*')
+        .eq('game_id', gameId);
+
+      if (playersError) throw playersError;
+      setPlayers(playersData || []);
+
+      // Fetch scores
+      const { data: scoresData, error: scoresError } = await supabase
+        .from('scores')
+        .select('*')
+        .eq('game_id', gameId);
+
+      if (scoresError) throw scoresError;
+
+      // Convert scores to the format we need
+      const scoresMap: Scores = {};
+      (playersData || []).forEach(player => {
+        scoresMap[player.id] = Array(currentGame?.holes || 18).fill(0);
+      });
+
+      (scoresData || []).forEach(score => {
+        if (scoresMap[score.player_id]) {
+          scoresMap[score.player_id][score.hole - 1] = score.strokes;
+        }
+      });
+
+      setScores(scoresMap);
+    } catch (error) {
+      console.error('Error fetching players and scores:', error);
+    }
+  };
 
   // Generate random game code
   const generateGameCode = (): string => {
@@ -304,7 +403,20 @@ export default function GolfScoringApp() {
     setPlayerName('');
     setCurrentHole(1);
     setCurrentPlayer(null);
+    clearSavedState();
   };
+
+  // Don't render anything until we've checked for saved state
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-green-800">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Home screen
   if (currentView === 'home') {
@@ -421,6 +533,12 @@ export default function GolfScoringApp() {
               >
                 Start Game
               </button>
+            </div>
+
+            <div className="mt-4 text-center">
+              <p className="text-xs text-gray-500">
+                Your game session is saved. You can safely refresh or close this page.
+              </p>
             </div>
           </div>
         </div>
