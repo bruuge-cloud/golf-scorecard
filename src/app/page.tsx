@@ -4,64 +4,84 @@ import React, { useState, useEffect } from 'react';
 import { Users, Trophy, Plus, Minus, RotateCcw, Copy, Check, Wifi, WifiOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
+// Type definitions
+interface Game {
+  id: string;
+  code: string;
+  host_name: string;
+  holes: number;
+  status: string;
+}
+
+interface Player {
+  id: string;
+  name: string;
+  is_host: boolean;
+  game_id?: string;
+}
+
+interface Scores {
+  [playerId: string]: number[];
+}
+
 export default function GolfScoringApp() {
-  const [currentView, setCurrentView] = useState('home');
-  const [gameCode, setGameCode] = useState('');
-  const [joinCode, setJoinCode] = useState('');
-  const [playerName, setPlayerName] = useState('');
-  const [currentGame, setCurrentGame] = useState(null);
-  const [players, setPlayers] = useState([]);
-  const [scores, setScores] = useState({});
-  const [isConnected, setIsConnected] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const [currentHole, setCurrentHole] = useState(1);
-  const [codeCopied, setCodeCopied] = useState(false);
+  const [currentView, setCurrentView] = useState<'home' | 'lobby' | 'scoring' | 'leaderboard'>('home');
+  const [gameCode, setGameCode] = useState<string>('');
+  const [joinCode, setJoinCode] = useState<string>('');
+  const [playerName, setPlayerName] = useState<string>('');
+  const [currentGame, setCurrentGame] = useState<Game | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [scores, setScores] = useState<Scores>({});
+  const [isConnected, setIsConnected] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [currentHole, setCurrentHole] = useState<number>(1);
+  const [codeCopied, setCodeCopied] = useState<boolean>(false);
 
   // Generate random game code
-  const generateGameCode = () => {
+  const generateGameCode = (): string => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   };
 
   // Set up real-time subscriptions
-useEffect(() => {
-  if (!currentGame?.id) return;
+  useEffect(() => {
+    if (!currentGame?.id) return;
 
-  // Subscribe to player changes
-  const playersSubscription = supabase
-    .channel('players-changes')
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'players',
-      filter: `game_id=eq.${currentGame.id}`
-    }, (payload) => {
-      console.log('Players changed:', payload);
-      fetchPlayers();
-    })
-    .subscribe();
+    // Subscribe to player changes
+    const playersSubscription = supabase
+      .channel('players-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'players',
+        filter: `game_id=eq.${currentGame.id}`
+      }, (payload) => {
+        console.log('Players changed:', payload);
+        fetchPlayers();
+      })
+      .subscribe();
 
-  // Subscribe to score changes
-  const scoresSubscription = supabase
-    .channel('scores-changes')
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'scores',
-      filter: `game_id=eq.${currentGame.id}`
-    }, (payload) => {
-      console.log('Scores changed:', payload);
-      fetchScores();
-    })
-    .subscribe();
+    // Subscribe to score changes
+    const scoresSubscription = supabase
+      .channel('scores-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'scores',
+        filter: `game_id=eq.${currentGame.id}`
+      }, (payload) => {
+        console.log('Scores changed:', payload);
+        fetchScores();
+      })
+      .subscribe();
 
-  return () => {
-    playersSubscription.unsubscribe();
-    scoresSubscription.unsubscribe();
-  };
-}, [currentGame?.id]); // Add dependency
+    return () => {
+      playersSubscription.unsubscribe();
+      scoresSubscription.unsubscribe();
+    };
+  }, [currentGame?.id]);
 
   // Fetch players for current game
-  const fetchPlayers = async () => {
+  const fetchPlayers = async (): Promise<void> => {
     if (!currentGame) return;
 
     const { data, error } = await supabase
@@ -72,12 +92,12 @@ useEffect(() => {
     if (error) {
       console.error('Error fetching players:', error);
     } else {
-      setPlayers(data);
+      setPlayers(data || []);
     }
   };
 
   // Fetch scores for current game
-  const fetchScores = async () => {
+  const fetchScores = async (): Promise<void> => {
     if (!currentGame) return;
 
     const { data, error } = await supabase
@@ -89,12 +109,12 @@ useEffect(() => {
       console.error('Error fetching scores:', error);
     } else {
       // Convert scores to the format we need
-      const scoresMap = {};
+      const scoresMap: Scores = {};
       players.forEach(player => {
         scoresMap[player.id] = Array(currentGame.holes).fill(0);
       });
 
-      data.forEach(score => {
+      data?.forEach(score => {
         if (scoresMap[score.player_id]) {
           scoresMap[score.player_id][score.hole - 1] = score.strokes;
         }
@@ -105,7 +125,7 @@ useEffect(() => {
   };
 
   // Create new game
-  const createGame = async () => {
+  const createGame = async (): Promise<void> => {
     if (!playerName.trim()) return;
     
     setIsLoading(true);
@@ -144,7 +164,7 @@ useEffect(() => {
       setGameCode(newGameCode);
       setCurrentView('lobby');
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating game:', error);
       alert(`Failed to create game: ${error.message}`);
     } finally {
@@ -153,7 +173,7 @@ useEffect(() => {
   };
 
   // Join existing game
-  const joinGame = async () => {
+  const joinGame = async (): Promise<void> => {
     if (!joinCode.trim() || !playerName.trim()) return;
     
     setIsLoading(true);
@@ -192,11 +212,11 @@ useEffect(() => {
       if (playersError) throw playersError;
 
       setCurrentGame(gameData);
-      setPlayers(allPlayers);
+      setPlayers(allPlayers || []);
       setGameCode(gameData.code);
       setCurrentView('lobby');
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error joining game:', error);
       alert(`Failed to join game: ${error.message}`);
     } finally {
@@ -205,23 +225,23 @@ useEffect(() => {
   };
 
   // Start game
-  const startGame = async () => {
+  const startGame = async (): Promise<void> => {
     if (players.length < 1) {
       alert('Need at least 1 player to start the game');
       return;
     }
     
     // Initialize scores
-    const initialScores = {};
+    const initialScores: Scores = {};
     players.forEach(player => {
-      initialScores[player.id] = Array(currentGame.holes).fill(0);
+      initialScores[player.id] = Array(currentGame!.holes).fill(0);
     });
     setScores(initialScores);
     setCurrentView('scoring');
   };
 
   // Update score
-  const updateScore = async (playerId, hole, newScore) => {
+  const updateScore = async (playerId: string, hole: number, newScore: number): Promise<void> => {
     const finalScore = Math.max(0, newScore);
     
     try {
@@ -237,7 +257,7 @@ useEffect(() => {
       await supabase
         .from('scores')
         .upsert({
-          game_id: currentGame.id,
+          game_id: currentGame!.id,
           player_id: playerId,
           hole: hole,
           strokes: finalScore
@@ -249,14 +269,14 @@ useEffect(() => {
   };
 
   // Copy game code
-  const copyGameCode = () => {
+  const copyGameCode = (): void => {
     navigator.clipboard.writeText(gameCode);
     setCodeCopied(true);
     setTimeout(() => setCodeCopied(false), 2000);
   };
 
   // Get player total
-  const getPlayerTotal = (playerId) => {
+  const getPlayerTotal = (playerId: string): number => {
     return scores[playerId]?.reduce((sum, score) => sum + score, 0) || 0;
   };
 
@@ -277,7 +297,7 @@ useEffect(() => {
   };
 
   // Reset to home
-  const resetToHome = () => {
+  const resetToHome = (): void => {
     setCurrentView('home');
     setCurrentGame(null);
     setPlayers([]);
@@ -451,8 +471,8 @@ useEffect(() => {
                     Prev
                   </button>
                   <button
-                    onClick={() => setCurrentHole(Math.min(currentGame.holes, currentHole + 1))}
-                    disabled={currentHole === currentGame.holes}
+                    onClick={() => setCurrentHole(Math.min(currentGame!.holes, currentHole + 1))}
+                    disabled={currentHole === currentGame!.holes}
                     className="px-3 py-1 bg-gray-500 text-white rounded disabled:bg-gray-300"
                   >
                     Next
@@ -461,7 +481,7 @@ useEffect(() => {
               </div>
               
               <div className="flex gap-1 mb-4 overflow-x-auto">
-                {Array.from({ length: currentGame.holes }, (_, i) => (
+                {Array.from({ length: currentGame!.holes }, (_, i) => (
                   <button
                     key={i}
                     onClick={() => setCurrentHole(i + 1)}
@@ -528,7 +548,7 @@ useEffect(() => {
                       <div>
                         <h3 className="font-semibold text-lg">{player.name}</h3>
                         <p className="text-gray-600">
-                          {player.currentHole > currentGame.holes ? 'Finished' : `On hole ${player.currentHole}`}
+                          {player.currentHole > currentGame!.holes ? 'Finished' : `On hole ${player.currentHole}`}
                         </p>
                       </div>
                     </div>
