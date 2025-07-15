@@ -458,7 +458,7 @@ export default function GolfScoringApp() {
                 value={playerName}
                 onChange={(e) => setPlayerName(e.target.value)}
                 placeholder="Enter your name"
-                className="w-full p-3 border border-gray-300 rounded-md"
+                className="w-full p-3 border border-gray-300 rounded-md text-gray-900 placeholder-gray-600"
               />
             </div>
 
@@ -483,7 +483,7 @@ export default function GolfScoringApp() {
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                   placeholder="Enter game code"
-                  className="w-full p-3 border border-gray-300 rounded-md"
+                  className="w-full p-3 border border-gray-300 rounded-md text-gray-900 placeholder-gray-600"
                 />
                 <button
                   onClick={joinGame}
@@ -530,7 +530,7 @@ export default function GolfScoringApp() {
               <div className="space-y-2">
                 {players.map(player => (
                   <div key={player.id} className="flex items-center justify-between bg-gray-50 p-3 rounded">
-                    <span className="font-medium">{player.name}</span>
+                    <span className="font-medium text-gray-900">{player.name}</span>
                     {player.is_host && (
                       <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                         Host
@@ -593,7 +593,7 @@ export default function GolfScoringApp() {
           <div>
             <div className="mb-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Hole {currentHole}</h2>
+                <h2 className="text-xl font-semibold text-gray-900">Hole {currentHole}</h2>
                 <div className="flex gap-2">
                   <button
                     onClick={() => fetchScoresData()}
@@ -624,10 +624,10 @@ export default function GolfScoringApp() {
                   <button
                     key={i}
                     onClick={() => setCurrentHole(i + 1)}
-                    className={`min-w-[40px] h-10 rounded ${
+                    className={`min-w-[40px] h-10 rounded text-sm font-medium ${
                       currentHole === i + 1 
                         ? 'bg-green-600 text-white' 
-                        : 'bg-white border border-gray-300'
+                        : 'bg-white border border-gray-300 text-gray-900 hover:bg-gray-50'
                     }`}
                   >
                     {i + 1}
@@ -644,14 +644,14 @@ export default function GolfScoringApp() {
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-lg">{player.name}</h3>
+                        <h3 className="font-semibold text-lg text-gray-900">{player.name}</h3>
                         {player.id === currentPlayer?.id && (
                           <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                             You
                           </span>
                         )}
                       </div>
-                      <p className="text-gray-800">Total: {getPlayerTotal(player.id)}</p>
+                      <p className="text-gray-900 font-medium">Total: {getPlayerTotal(player.id)}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       {player.id === currentPlayer?.id ? (
@@ -663,7 +663,7 @@ export default function GolfScoringApp() {
                           >
                             <Minus size={20} />
                           </button>
-                          <span className="text-2xl font-bold w-8 text-center">
+                          <span className="text-2xl font-bold w-8 text-center text-gray-900">
                             {scores[player.id]?.[currentHole - 1] || 0}
                           </span>
                           <button
@@ -679,7 +679,7 @@ export default function GolfScoringApp() {
                           <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
                             <Minus size={20} className="text-gray-500" />
                           </div>
-                          <span className="text-2xl font-bold w-8 text-center text-gray-700">
+                          <span className="text-2xl font-bold w-8 text-center text-gray-900">
                             {scores[player.id]?.[currentHole - 1] || 0}
                           </span>
                           <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
@@ -712,7 +712,7 @@ export default function GolfScoringApp() {
                         {index + 1}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-lg">{player.name}</h3>
+                        <h3 className="font-semibold text-lg text-gray-900">{player.name}</h3>
                         <p className="text-gray-800">
                           {player.currentHole > currentGame!.holes ? 'Finished' : `On hole ${player.currentHole}`}
                         </p>
