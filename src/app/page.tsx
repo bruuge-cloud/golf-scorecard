@@ -32,7 +32,6 @@ export default function GolfScoringApp() {
   const [currentGame, setCurrentGame] = useState<Game | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [scores, setScores] = useState<Scores>({});
-  const [isConnected, setIsConnected] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [currentHole, setCurrentHole] = useState<number>(1);
   const [codeCopied, setCodeCopied] = useState<boolean>(false);
@@ -43,42 +42,77 @@ export default function GolfScoringApp() {
   };
 
   // Set up real-time subscriptions
-  useEffect(() => {
-    if (!currentGame?.id) return;
+useEffect(() => {
+  if (!currentGame?.id) return;
 
-    // Subscribe to player changes
-    const playersSubscription = supabase
-      .channel('players-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'players',
-        filter: `game_id=eq.${currentGame.id}`
-      }, (payload) => {
-        console.log('Players changed:', payload);
-        fetchPlayers();
-      })
-      .subscribe();
+  const fetchPlayersCallback = async () => {
+    const { data, error } = await supabase
+      .from('players')
+      .select('*')
+      .eq('game_id', currentGame.id);
 
-    // Subscribe to score changes
-    const scoresSubscription = supabase
-      .channel('scores-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'scores',
-        filter: `game_id=eq.${currentGame.id}`
-      }, (payload) => {
-        console.log('Scores changed:', payload);
-        fetchScores();
-      })
-      .subscribe();
+    if (error) {
+      console.error('Error fetching players:', error);
+    } else {
+      setPlayers(data || []);
+    }
+  };
 
-    return () => {
-      playersSubscription.unsubscribe();
-      scoresSubscription.unsubscribe();
-    };
-  }, [currentGame?.id]);
+  const fetchScoresCallback = async () => {
+    const { data, error } = await supabase
+      .from('scores')
+      .select('*')
+      .eq('game_id', currentGame.id);
+
+    if (error) {
+      console.error('Error fetching scores:', error);
+    } else {
+      const scoresMap: Scores = {};
+      players.forEach(player => {
+        scoresMap[player.id] = Array(currentGame.holes).fill(0);
+      });
+
+      data?.forEach(score => {
+        if (scoresMap[score.player_id]) {
+          scoresMap[score.player_id][score.hole - 1] = score.strokes;
+        }
+      });
+
+      setScores(scoresMap);
+    }
+  };
+
+  // Subscribe to player changes
+  const playersSubscription = supabase
+    .channel('players-changes')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'players',
+      filter: `game_id=eq.${currentGame.id}`
+    }, () => {
+      fetchPlayersCallback();
+    })
+    .subscribe();
+
+  // Subscribe to score changes
+  const scoresSubscription = supabase
+    .channel('scores-changes')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'scores',
+      filter: `game_id=eq.${currentGame.id}`
+    }, () => {
+      fetchScoresCallback();
+    })
+    .subscribe();
+
+  return () => {
+    playersSubscription.unsubscribe();
+    scoresSubscription.unsubscribe();
+  };
+}, [currentGame?.id, currentGame?.holes, players]);
 
   // Fetch players for current game
   const fetchPlayers = async (): Promise<void> => {
@@ -164,9 +198,10 @@ export default function GolfScoringApp() {
       setGameCode(newGameCode);
       setCurrentView('lobby');
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating game:', error);
-      alert(`Failed to create game: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to create game: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -191,17 +226,15 @@ export default function GolfScoringApp() {
       }
 
       // Add player to game
-      const { data: playerData, error: playerError } = await supabase
+      const { error: playerError } = await supabase
         .from('players')
         .insert({
           game_id: gameData.id,
           name: playerName.trim(),
           is_host: false
-        })
-        .select()
-        .single();
+        });
 
-      if (playerError) throw playerError;
+if (playerError) throw playerError;
 
       // Get all players
       const { data: allPlayers, error: playersError } = await supabase
@@ -216,9 +249,10 @@ export default function GolfScoringApp() {
       setGameCode(gameData.code);
       setCurrentView('lobby');
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error joining game:', error);
-      alert(`Failed to join game: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to join game: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -437,14 +471,7 @@ export default function GolfScoringApp() {
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <div>
             <h1 className="text-xl font-bold">Golf Scorecard</h1>
-            <div className="flex items-center gap-2 text-sm">
-              <span>Game: {gameCode}</span>
-              {isConnected ? (
-                <Wifi size={16} className="text-green-200" />
-              ) : (
-                <WifiOff size={16} className="text-red-200" />
-              )}
-            </div>
+            
           </div>
           <button
             onClick={resetToHome}
