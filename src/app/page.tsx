@@ -357,7 +357,7 @@ export default function GolfScoringApp() {
         )
       }));
 
-      // Update in Supabase
+      // Update in Supabase - use upsert with proper conflict resolution
       const { error } = await supabase
         .from('scores')
         .upsert({
@@ -365,6 +365,8 @@ export default function GolfScoringApp() {
           player_id: playerId,
           hole: hole,
           strokes: finalScore
+        }, {
+          onConflict: 'game_id,player_id,hole'
         });
 
       if (error) {
